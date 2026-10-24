@@ -1,0 +1,50 @@
+# MusicAI - lokale Konfiguration. Alle Pfade relativ zu diesem Ordner (nie globale Verzeichnisse).
+paths:
+  data: "data"                 # DB, Analysen, erzeugte Tracks
+  ffmpeg: "ffmpeg"
+  input: "input"               # ein Unterordner = ein Creator (Rechte-Inhaber/Quelle); Audio- und Videodateien werden erkannt
+  models: "models"             # trainierte Stil-Adapter (LoRA): models/<creator>/adapter/
+  # nas_root bleibt leer: automatisch die NAS-Freigabe, auf der dieses Projekt liegt.
+
+music:
+  base_model: "facebook/musicgen-large"     # 3,3 Mrd. Parameter (Gewichte ca. 13 GB fp32 / 6,6 GB fp16) - braucht deutlich mehr als 6 GB VRAM, siehe README
+  cache: "runtime/cache/huggingface"        # Basismodell wird einmalig hierher geladen
+  allow_download: true                      # false = nur lokal vorhandene Modelle
+  quantize: "auto"                          # auto = 4bit bei large/medium auf GPU (passt in 6 GB), sonst none; weitere Werte: none | 8bit | 4bit
+  sample_rate: 32000                        # Abtastrate von MusicGen/EnCodec
+  device: "auto"                            # auto = GPU wenn vorhanden, sonst CPU (sehr langsam)
+
+analysis:
+  analysis_sample_rate: 22050
+  max_seconds: 1200            # je Datei hoechstens so viel analysieren (lange Mixe/Streams werden gekuerzt)
+
+training:                      # LoRA-Feintuning des MusicGen-Decoders je Creator
+  clip_seconds: 10             # Trainingsausschnitte (kuerzer = weniger VRAM; large: 10 s)
+  clips_per_track: 6           # wie viele Ausschnitte je Titel
+  max_clips: 400
+  epochs: 3
+  batch_size: 1
+  grad_accum: 8
+  learning_rate: 0.0002
+  lora_rank: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  fp16: true
+  gradient_checkpointing: true
+
+generation:
+  max_seconds: 30              # MusicGen-Kontext; laengere Stuecke werden aus Fortsetzungen zusammengesetzt
+  guidance_scale: 3.0
+  temperature: 1.0
+  top_k: 250
+  continue_overlap_seconds: 8  # Kontext, der beim Verlaengern uebernommen wird
+  crossfade_seconds: 2
+
+inbox:                         # Eingangsordner wird beobachtet: neue Dateien werden erkannt, Analyse per Button (oder auto_analyze)
+  auto_analyze: false
+  interval_seconds: 60
+  settle_seconds: 30           # Datei muss so lange unveraendert sein (Kopiervorgang abgeschlossen)
+
+web:
+  host: "127.0.0.1"
+  port: 8790

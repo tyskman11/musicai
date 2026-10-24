@@ -1,0 +1,10 @@
+# KI-Pakete fuer Training und Erzeugung (Python 3.10-3.12). Entspricht der Umgebung von ..\SeriesAI\.venv, plus peft.
+# PyTorch mit CUDA 12.4 (RTX-Karten); ohne NVIDIA-GPU stattdessen die CPU-Variante von https://pytorch.org waehlen.
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.6.0+cu124
+torchaudio==2.6.0+cu124
+transformers>=4.40,<4.58
+peft>=0.11
+accelerate>=0.30
+sentencepiece>=0.2
+bitsandbytes>=0.43      # 4-Bit-Quantisierung fuer musicgen-large auf 6 GB VRAM

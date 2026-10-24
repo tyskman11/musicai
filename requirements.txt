@@ -1,0 +1,6 @@
+# Basis (Analyse, WebUI, Stil-Profile, Mischen der Profile) - ohne KI-Pakete
+numpy>=1.26
+scipy>=1.11
+soundfile>=0.12
+pyyaml>=6.0
+pytest>=8.0

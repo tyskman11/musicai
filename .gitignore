@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+data/
+input/
+models/
+logs/
+server.*.log
+
+runtime/
+
+pool/
+.env
+.env.*
+*.db
+*.db-*

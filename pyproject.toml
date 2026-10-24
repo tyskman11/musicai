@@ -1,0 +1,13 @@
+[project]
+name = "musicai"
+version = "0.2.4"
+description = "Lernt den Stil von Musik-Creators (mit Rechten) per LoRA und erzeugt eigene Musik, auch gemischt (lokal)"
+requires-python = ">=3.10"
+dependencies = ["numpy", "scipy", "soundfile", "pyyaml"]
+
+[project.optional-dependencies]
+full = ["torch", "torchaudio", "transformers", "peft", "accelerate", "bitsandbytes"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

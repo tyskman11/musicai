@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MusicAI Dashboard</title>
+<style>
+:root{--bg:#0e1116;--panel:#171b22;--panel2:#1f2530;--line:#2b3340;--text:#e6e9ef;--mute:#8d97a8;--acc:#ff9f5a;--acc2:#5ad1c5;--ok:#58d68d;--warn:#f5b041;--err:#ec7063}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,Segoe UI,sans-serif}
+header{display:flex;align-items:center;gap:20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header h1{font-size:18px;margin:0;color:var(--acc);letter-spacing:.5px}nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{background:none;border:0;color:var(--mute);padding:7px 12px;border-radius:8px;cursor:pointer;font:inherit}
+nav button.on,nav button:hover{background:var(--panel2);color:var(--text)}
+#jobpill{margin-left:auto;font-size:12px;color:var(--mute);cursor:pointer;background:none;border:0;padding:7px 10px;border-radius:8px;font:inherit}#jobpill:hover,#jobpill:focus-visible{background:var(--panel2);color:var(--text);outline:1px solid var(--line)}#jobpill b{color:var(--acc2)}
+main{padding:20px;max-width:1200px;margin:0 auto}
+h2{font-size:16px;margin:0 0 12px}h3{font-size:13px;margin:16px 0 8px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(min(250px,100%),1fr))}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.stat{font-size:26px;font-weight:600}.mute{color:var(--mute)}.small{font-size:12px}
+.btn{background:var(--acc);color:#1b1207;border:0;padding:7px 14px;border-radius:8px;cursor:pointer;font:inherit;font-weight:600}
+.sec{background:var(--panel2);color:var(--text);border:1px solid var(--line)}.dng{background:none;color:var(--err);border:1px solid var(--err)}
+button:disabled{opacity:.45;cursor:default}
+input,select,textarea{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:7px 9px;border-radius:8px;font:inherit;max-width:100%}
+input[type=range]{padding:0;accent-color:var(--acc)}input[type=checkbox]{accent-color:var(--acc)}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mute)}
+.form{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));align-items:end}.wide{grid-column:1/-1}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}th{color:var(--mute);font-weight:500;font-size:12px}
+.pill{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;background:var(--panel2);border:1px solid var(--line)}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
+.bar{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden}.bar>i{display:block;height:100%;background:var(--acc2)}
+pre{background:#0a0d12;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:320px;overflow:auto;font-size:12px;white-space:pre-wrap}
+.mixrow{display:grid;grid-template-columns:150px 1fr 48px;gap:10px;align-items:center;padding:4px 0}
+audio{width:100%;margin-top:6px}
+.tiles{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(min(170px,100%),1fr));margin-bottom:16px}.tile{margin:0}
+.two{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));margin-bottom:16px}.two .card{margin:0}
+.gl{display:flex;justify-content:space-between;margin:10px 0 4px;font-size:13px}.spark{width:100%;height:30px;display:block;margin-top:4px;background:var(--panel2);border-radius:6px}
+.bpm{position:relative;height:8px;background:var(--panel2);border-radius:4px;margin:8px 0 4px}.bpm i{position:absolute;top:0;height:100%;background:var(--acc2);opacity:.45;border-radius:4px}.bpm u{position:absolute;top:-3px;width:3px;height:14px;background:var(--acc);border-radius:2px}
+#toast{position:fixed;bottom:18px;right:18px;background:var(--panel2);border:1px solid var(--line);padding:10px 14px;border-radius:10px;display:none;max-width:420px;z-index:9}
+.job-current{white-space:pre-line}
+@media(max-width:680px){header{gap:6px;padding:8px 12px;flex-wrap:wrap}header h1{font-size:16px}nav{order:3;width:100%;flex-wrap:wrap;overflow:visible;padding-bottom:2px}nav button{white-space:nowrap;padding:6px 9px}#jobpill{margin-left:auto;max-width:44vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:6px 8px}#restartbtn{padding:5px 8px!important}main{padding:12px}.card{padding:12px}}
+</style>
+</head>
+<body>
+<header><h1>♪ MusicAI</h1>
+<nav id="nav"></nav><button id="jobpill" type="button" onclick="go('jobs')" title="Jobs anzeigen und verwalten" aria-label="Jobs anzeigen und verwalten"></button><button id="restartbtn" onclick="restartApp()" title="start.py im Terminal neu starten (Code-Änderungen übernehmen)" style="background:var(--panel2);color:var(--fg,#eee);border:1px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer">⟳ Neustart</button></header>
+<main id="main"></main><div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// The production dashboard is reverse-proxied below a long /access/.../ path.
+// Keep requests relative to this application, not to the host root (/api).
+const APP_BASE=new URL('.',window.location.href).pathname.replace(/\/$/,'');
+// Some access proxies rewrite literal /api URLs in the delivered HTML.  Do
+// not add the prefix a second time when the proxy has already done that.
+const appUrl=path=>path.startsWith(APP_BASE)?path:APP_BASE+path;
+const TABS=[['overview','Übersicht'],['creators','Creators'],['studio','Stil-Mix & Erzeugen'],['pieces','Stücke'],['jobs','Jobs']];
+let tab=localStorage.getItem('tab')||'overview', timer=null, mix={}, selected=null, gpuHist=[];
+async function api(path,method='GET',body){const r=await fetch(appUrl(path),{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||r.statusText);return d}
+
+// ---- Fortschritt/ETA und Fehleranalyse (nur fehlgeschlagene Jobs) ----
+const fmtDur=s=>{s=Math.max(0,Math.round(s));if(s<60)return s+' s';const m=Math.round(s/60);return m<60?m+' min':Math.floor(m/60)+' h '+(m%60)+' min'};
+const fmtCurrent=s=>String(s||'').replace(/ETA\s+(\d+)\s+min\b/,(_,m)=>'ETA '+fmtDur(Number(m)*60)).replace(/ {2,}/g,'\n');
+function jobTimes(all){const d={};all.filter(j=>j.status==='done'&&j.started&&j.finished).forEach(j=>(d[j.kind]||=[]).push(j.finished-j.started));
+ return Object.fromEntries(Object.entries(d).map(([k,v])=>{v.sort((a,b)=>a-b);return [k,v[Math.floor(v.length/2)]]}))}
+function jobEta(j,typ){if(j.status==='running'){const el=Date.now()/1000-(j.started||j.created);return (j.progress||0)>0.02?el*(1-j.progress)/j.progress:(typ[j.kind]!=null?typ[j.kind]*(1-(j.progress||0)):null)}
+ return j.status==='queued'?(typ[j.kind]??null):null}
+function jobProgressHtml(j,typ){const p=Math.round((j.progress||0)*100),e=jobEta(j,typ);
+ const txt=j.status==='done'?'100 %':j.status==='running'?`${p} %${e!=null?' · ETA '+fmtDur(e):''}`:j.status==='queued'?(e!=null?`wartet · ca. ${fmtDur(e)}`:'wartet'):`${p} %`;
+ return `<div class="mute small" style="margin-top:3px">${txt}</div>`}
+function jobSummaryHtml(all){const typ=jobTimes(all),live=all.filter(j=>['running','queued'].includes(j.status));if(!live.length)return '';
+ const since=Math.min(...live.map(j=>j.created)),fin=all.filter(j=>j.status==='done'&&(j.finished||0)>=since);
+ const total=live.length+fin.length,pct=Math.round((live.reduce((a,j)=>a+(j.progress||0),0)+fin.length)/total*100);
+ const per={};let unknown=false;live.forEach(j=>{const e=jobEta(j,typ);if(e==null)unknown=true;else per[j.kind]=(per[j.kind]||0)+e});   // Arten laufen parallel, gleiche Art nacheinander
+ const eta=Object.keys(per).length?(unknown?'mind. ':'')+fmtDur(Math.max(...Object.values(per))):'wird berechnet';
+ return `<div class="card"><b>Gesamtfortschritt: ${pct} %</b> · ${live.length} offen, ${fin.length} fertig · ETA ${eta}<div class="bar" style="margin-top:6px"><i style="width:${pct}%"></i></div></div>`}
+function closeDiagnose(){const m=document.getElementById('diagmodal');if(m)m.remove()}
+async function openDiagnose(){let d;try{d=await api('/api/jobs/diagnose','POST',{})}catch(e){return toast(e.message||String(e),true)}
+ closeDiagnose();const m=document.createElement('div');m.id='diagmodal';m.style.cssText='position:fixed;inset:0;background:#000b;z-index:40;overflow:auto;padding:24px';
+ m.innerHTML=`<div style="max-width:900px;margin:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px"><h2>Fehleranalyse (nur fehlgeschlagene Jobs) <button class="btn sec" onclick="closeDiagnose()">schließen</button></h2>`+
+ (d.groups.length?d.groups.map(g=>`<div class="card" style="margin-top:10px"><b>${esc(g.title)}</b> <b style="color:var(--err,#f66)">${g.count}×</b> <span class="mute small">${esc(g.kinds.join(', '))}</span>
+ <p>${esc(g.hint)}</p><p class="mute small">Jobs: ${g.jobs.slice(0,12).map(j=>'#'+j.id).join(', ')}${g.jobs.length>12?' …':''}</p>
+ <details><summary>Fehlermeldung / Log-Ende</summary><pre>${esc(g.trace)}</pre></details>
+ <div class="row" style="margin-top:8px"><button class="btn" onclick="retryGroup('${g.id}')">Alle ${g.count} erneut starten</button><button class="btn sec" onclick="explainGroup('${g.id}',this)">Mit lokalem LLM erklären</button></div><div id="dx${g.id}"></div></div>`).join(''):'<p>Keine fehlgeschlagenen Jobs.</p>')+'</div>';
+ document.body.appendChild(m);window._diag=d}
+async function retryGroup(id){const g=(window._diag?.groups||[]).find(x=>x.id===id);if(!g)return;await act(async()=>{for(const j of g.jobs)await api(`/api/jobs/${j.id}/retry`,'POST');toast(g.jobs.length+' Job(s) erneut gestartet');closeDiagnose();
+ if(typeof refreshJobs==='function'){await refreshJobs();renderJobs($('#main'))}else render()})}
+async function explainGroup(id,btn){const box=document.getElementById('dx'+id);btn.disabled=true;box.innerHTML='<p class="mute">LLM denkt nach …</p>';
+ try{const r=await api('/api/jobs/diagnose','POST',{llm:true,group:id});box.innerHTML=`<p style="white-space:pre-wrap">${esc(r.groups[0]?.explanation||'Keine Antwort.')}</p>`}catch(e){box.innerHTML=`<p class="mute">${esc(e.message)}</p>`}btn.disabled=false}
+async function restartApp(){
+  if(!confirm('MusicAI neu starten?\nstart.py startet im Terminal neu (Code-Änderungen werden übernommen). Laufende Jobs werden unterbrochen und später fortgesetzt.'))return;
+  try{await api('/api/restart','POST')}catch(e){return toast(e.message||String(e),true)}
+  toast('Neustart läuft ...');
+  const t=setInterval(async()=>{try{const r=await fetch(appUrl('/api/overview'),{cache:'no-store'});if(r.ok){clearInterval(t);location.reload()}}catch{}},2000);
+}
+function toast(m,err){const t=$('#toast');t.textContent=m;t.style.display='block';t.style.borderColor=err?'var(--err)':'var(--line)';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',err?7000:3500)}
+async function act(fn){try{return await fn()}catch(e){toast(e.message,true)}}
+function go(t){tab=t;localStorage.setItem('tab',t);render()}
+const fmtH=h=>h>=1?h.toFixed(1)+' h':Math.round(h*60)+' min', fmtT=s=>s?`${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`:'–';
+async function render(){
+  $('#nav').innerHTML=TABS.map(([k,l])=>`<button class="${k===tab?'on':''}" onclick="go('${k}')">${l}</button>`).join('');
+  clearTimeout(timer); await VIEWS[tab](); pill();
+  if(['overview','jobs','pieces','creators'].includes(tab)) timer=setTimeout(render,tab==='overview'?3000:tab==='jobs'?2500:5000);
+}
+async function pill(){try{const j=await api('/api/jobs?limit=20');const a=j.filter(x=>x.status==='running'||x.status==='queued');$('#jobpill').innerHTML=a.length?`<b>${a.length}</b> Job(s) aktiv: ${esc(a[0].title)} ${Math.round((a[0].progress||0)*100)} %`:'keine aktiven Jobs'}catch{}}
+const VIEWS={
+async overview(){
+  const d=await api('/api/dashboard'), o=d.overview, g=d.gpu;
+  if(g){gpuHist.push({u:g.util||0,m:g.mem_total?g.mem_used/g.mem_total*100:0});if(gpuHist.length>90)gpuHist.shift()}
+  const spark=(key,col)=>{if(gpuHist.length<2)return '';const pts=gpuHist.map((h,i)=>`${(i/89)*100},${30-h[key]*0.3}`).join(' ');return `<svg viewBox="0 0 100 30" preserveAspectRatio="none" class="spark"><polyline fill="none" stroke="${col}" stroke-width="1.2" vector-effect="non-scaling-stroke" points="${pts}"/></svg>`};
+  const active=d.jobs.filter(j=>['running','queued'].includes(j.status));
+  const tile=(l,v,sub='')=>`<div class="card tile"><div class="mute small">${l}</div><div class="stat">${v}</div><div class="small mute">${sub}</div></div>`;
+  const arc=a=>{if(!a||a.length<2)return '';const mn=Math.min(...a),mx=Math.max(...a),r=(mx-mn)||1;return `<svg viewBox="0 0 100 24" preserveAspectRatio="none" class="spark"><polyline fill="none" stroke="var(--acc)" stroke-width="1.5" vector-effect="non-scaling-stroke" points="${a.map((v,i)=>`${i/(a.length-1)*100},${22-(v-mn)/r*20}`).join(' ')}"/></svg>`};
+  const step=(ok,label,warn)=>`<span class="pill ${ok?'ok':warn?'warn':''}">${ok?'✓':'○'} ${label}</span>`;
+  const f=d.failures||{total:0,tracks:[],pieces:[],jobs:[]};
+  const failCard=f.total?`<div class="card" style="border-color:var(--err)"><div class="row"><h2 style="margin:0" class="err">Fehlgeschlagen (${f.total})</h2><span class="small mute">Es werden nur diese wiederholt, nichts anderes.</span>
+    <button class="btn" style="margin-left:auto" onclick="retryFail()">Alle Fehlgeschlagenen wiederholen</button></div>
+    ${f.tracks.length?`<h3>Analyse – Titel (${f.tracks.length})</h3>${f.tracks.slice(0,6).map(t=>`<div class="small"><b>${esc(t.creator)}</b> · ${esc(t.title)} <span class="err">${esc(t.error)}</span></div>`).join('')}${f.tracks.length>6?`<div class="small mute">… und ${f.tracks.length-6} weitere</div>`:''}<button class="btn sec" style="margin-top:6px" onclick="retryFail(['tracks'])">Nur diese Titel erneut analysieren</button>`:''}
+    ${f.pieces.length?`<h3>Erzeugen – Stücke (${f.pieces.length})</h3>${f.pieces.slice(0,6).map(p=>`<div class="small"><b>${esc(p.name)}</b> <span class="err">${esc(p.error||'')}</span></div>`).join('')}<button class="btn sec" style="margin-top:6px" onclick="retryFail(['pieces'])">Nur diese Stücke neu erzeugen</button>`:''}
+    ${f.jobs.length?`<h3>Abgebrochene Jobs (${f.jobs.length})</h3>${f.jobs.slice(0,6).map(j=>`<div class="small">#${j.id} ${esc(j.title)} <span class="err">${esc(j.error)}</span></div>`).join('')}<button class="btn sec" style="margin-top:6px" onclick="retryFail(['jobs'])">Nur diese Jobs wiederholen</button>`:''}</div>`:'';
+  const analyzedAll=d.creators.reduce((s,c)=>s+c.analyzed,0);
+  $('#main').innerHTML=`${failCard}<div class="tiles">${tile('Creators',o.creators,`${o.tracks} Titel`)}${tile('Material',o.hours+' h','analysiert: '+analyzedAll+' / '+o.tracks)}${tile('Trainierte Stile',o.trained,'von '+o.creators)}${tile('Erzeugte Stücke',o.pieces,d.pieces.filter(p=>p.status==='done').length+' fertig')}${tile('Aktive Jobs',active.length,active.length?esc(active[0].title):'Leerlauf')}</div>
+  <div class="two"><div class="card"><h2>GPU</h2>${g?`<div class="small mute">${esc(g.name)} · ${g.temp??'–'} °C · ${g.power??'–'} W</div>
+    <div class="gl"><span>Auslastung</span><b>${g.util??'–'} %</b></div><div class="bar"><i style="width:${g.util||0}%"></i></div>${spark('u','var(--acc2)')}
+    <div class="gl"><span>VRAM</span><b>${Math.round(g.mem_used)} / ${Math.round(g.mem_total)} MB</b></div><div class="bar"><i style="width:${g.mem_used/g.mem_total*100}%;background:var(--acc)"></i></div>${spark('m','var(--acc)')}`:'<div class="mute">Keine NVIDIA-GPU gefunden (nvidia-smi nicht verfügbar).</div>'}</div>
+  <div class="card"><h2>Jobs</h2>${active.length?active.map(j=>`<div style="margin-bottom:10px"><div class="row"><b>#${j.id}</b> ${esc(j.title)} <span class="pill ${j.status==='running'?'ok':'warn'}">${j.status==='running'?Math.round((j.progress||0)*100)+' %':'wartet'}</span>${j.elapsed?`<span class="small mute">${fmtT(j.elapsed)}</span>`:''}</div><div class="bar"><i style="width:${Math.round((j.progress||0)*100)}%"></i></div>${j.current?`<div class="small mute job-current">${esc(fmtCurrent(j.current))}</div>`:''}</div>`).join(''):`<div class="mute">Leerlauf.</div>`}
+    <h3>Zuletzt</h3>${d.jobs.filter(j=>!['running','queued'].includes(j.status)).slice(0,4).map(j=>`<div class="small"><span class="${j.status==='done'?'ok':j.status==='error'?'err':'warn'}">●</span> ${esc(j.title)} <span class="mute">${j.status}</span></div>`).join('')||'<div class="small mute">–</div>'}</div></div>
+  <h3>Stile</h3><div class="grid">${d.creators.map(c=>{const p=c.profile;return `<div class="card"><div class="row"><b style="font-size:15px">${esc(c.name)}</b><span class="small mute" style="margin-left:auto">${c.tracks} Titel · ${fmtH(c.hours)}</span></div>
+    <div class="row" style="margin:8px 0;gap:6px">${step(c.rights,'Rechte',true)}${step(c.tracks&&c.analyzed===c.tracks,`Analyse ${c.analyzed}/${c.tracks}`,c.analyzed>0)}${step(!!p,'Profil')}${step(!!c.adapter,'Stil trainiert')}</div>
+    ${p?`<div class="small"><b>${esc(p.caption)}</b></div>
+    <div class="bpm"><i style="left:${(p.bpm_min-50)/1.5}%;width:${Math.max((p.bpm_max-p.bpm_min)/1.5,1)}%"></i><u style="left:${(p.bpm-50)/1.5}%"></u></div><div class="small mute">Tempo ${Math.round(p.bpm)} BPM (${Math.round(p.bpm_min)}–${Math.round(p.bpm_max)})</div>
+    <div class="row" style="gap:5px;margin:6px 0">${Object.entries(p.keys).slice(0,4).map(([k,v])=>`<span class="pill">${esc(k)} ${Math.round(v*100)} %</span>`).join('')}</div>
+    <div class="small mute">Energieverlauf (typisch)</div>${arc(p.energy_arc)}
+    <div class="row small mute" style="gap:10px">${[['Bass',p.bands.low],['Mitten',p.bands.mid],['Höhen',p.bands.high]].map(([l,v])=>`<span>${l} ${Math.round(v*100)} %</span>`).join('')}</div>`:'<div class="small mute">Noch kein Profil – unter „Creators“ analysieren.</div>'}
+    ${c.adapter?`<div class="small ok" style="margin-top:6px">Adapter: ${c.adapter.clips} Clips · Loss ${(c.adapter.loss||0).toFixed(2)}</div>`:''}</div>`}).join('')||'<div class="card mute">Noch keine Creators. Lege Ordner in <code>input/</code> an.</div>'}</div>
+  <div class="two"><div class="card"><h2>Letzte Stücke</h2>${d.pieces.map(p=>`<div style="margin-bottom:8px"><div class="row"><b>${esc(p.name)}</b><span class="pill ${p.status==='done'?'ok':p.status==='error'?'err':'warn'}">${p.status}</span><span class="small mute">${Object.entries(p.styles).map(([k,v])=>`${esc(k)} ${Math.round(v*100)} %`).join(' + ')||'Basismodell'} · ${p.seconds} s</span></div>${p.status==='done'?`<audio controls preload="none" src="${appUrl('/media/piece/'+p.id+'.wav')}"></audio>`:''}</div>`).join('')||'<div class="mute">Noch nichts erzeugt.</div>'}</div>
+  <div class="card"><h2>Eingang &amp; Umgebung</h2><div class="small">Noch nicht analysiert: ${d.inbox.pending.map(p=>`<b>${esc(p.creator)}</b> (${p.n})`).join(', ')||'<span class="mute">nichts</span>'}</div>
+    <div class="row" style="margin:8px 0"><button class="btn sec" onclick="act(async()=>{await api('/api/inbox/scan','POST');toast('Eingang geprüft')})">Eingang prüfen</button><button class="btn sec" onclick="envCheck()">Umgebung prüfen</button><button class="btn sec" onclick="go('studio')">Zum Erzeugen →</button></div><div id="env"></div></div></div>`;
+  if(window._env&&$('#env')) $('#env').innerHTML=window._env},
+async creators(){
+  const cs=await api('/api/creators');
+  $('#main').innerHTML=`<div class="card"><h2>Creator hinzufügen</h2><div class="form"><label class="f">Name<input id="cn" autocomplete="off"></label><div class="f"><span>Musikordner</span><button class="btn sec" onclick="pickFolder()">NAS-Ordner auswählen…</button><span id="cf" class="small mute">Noch kein Ordner gewählt – leer erstellt input/&lt;Name&gt; auf dem NAS.</span></div><button class="btn" onclick="addCreator()">Hinzufügen</button></div></div>`+
+  (cs.map(c=>`<div class="card"><div class="row"><h2 style="margin:0">${esc(c.name)}</h2><span class="pill">${c.tracks} Titel · ${fmtH(c.hours)}</span><span class="pill">${c.analyzed}/${c.tracks} analysiert</span>${c.errors?`<span class="pill err">${c.errors} Fehler</span>`:''}
+  <span class="pill ${c.rights?'ok':'warn'}">${c.rights?'Rechte bestätigt':'Rechte offen'}</span>${c.adapter?`<span class="pill ok">Stil trainiert (${c.adapter.clips} Clips, Loss ${(c.adapter.loss||0).toFixed(2)})</span>`:''}</div>
+  <div class="small mute" style="margin:6px 0">${esc(c.source_dir)}${c.rights?` · Grundlage: ${esc(c.rights_note)}`:''}</div>
+  <div class="row"><button class="btn sec" onclick="analyze(${c.id})">Analysieren</button><button class="btn sec" onclick="analyze(${c.id},true)">Alles neu</button>
+  <button class="btn" ${c.rights&&c.analyzed?'':'disabled'} onclick="trainStyle(${c.id})" title="${c.rights?'':'Erst Rechte bestätigen'}">Stil trainieren</button>
+  <button class="btn sec" onclick="rights(${c.id},${c.rights})">${c.rights?'Rechte zurücknehmen':'Rechte bestätigen…'}</button>
+  <button class="btn sec" onclick="showCreator(${c.id})">Details</button><button class="dng btn" onclick="delCreator(${c.id},'${esc(c.name)}')">Entfernen</button></div>
+  <div id="cd${c.id}"></div></div>`).join('')||'<div class="card mute">Noch keine Creators. Lege einen Ordner in <code>input/</code> an.</div>')},
+async studio(){
+  const cs=(await api('/api/creators')).filter(c=>c.has_profile||c.adapter);
+  if(!cs.length){$('#main').innerHTML='<div class="card mute">Noch kein analysierter Stil. Zuerst unter „Creators“ analysieren (und trainieren).</div>';return}
+  for(const c of cs) if(!(c.slug in mix)) mix[c.slug]=0;
+  if(!Object.values(mix).some(v=>v>0)) mix[cs[0].slug]=100;
+  $('#main').innerHTML=`<div class="card"><h2>Stil-Mix</h2><div class="small mute">Regler = Anteil des Stils. Gewichte werden normiert; 100 % auf einem Regler = reiner Stil.</div>
+  ${cs.map(c=>`<div class="mixrow"><div>${esc(c.name)} ${c.adapter?'<span class="pill ok">trainiert</span>':'<span class="pill warn">nur Profil</span>'}</div><input type="range" min="0" max="100" value="${mix[c.slug]}" oninput="setMix('${c.slug}',this.value)"><span id="mv_${c.slug}">${mix[c.slug]}</span></div>`).join('')}
+  <div id="mixinfo" class="small mute" style="margin-top:8px"></div></div>
+  <div class="card"><h2>Erzeugen</h2><div class="form"><label class="f wide">Beschreibung (englisch klappt am besten)<textarea id="gp" rows="2" placeholder="z. B. warm piano and soft strings, nostalgic"></textarea></label>
+  <label class="f">Länge (Sekunden)<input id="gs" type="number" value="60" min="5" max="1800"></label>
+  <label class="f">Stil-Stärke (0–2)<input id="gst" type="number" value="1" step="0.1" min="0" max="2"></label>
+  <label class="f">Seed (leer = zufällig)<input id="gseed" type="number"></label>
+  <label class="f">Name<input id="gname"></label>
+  <label class="f"><span>Tempo/Tonart aus dem Mix ergänzen</span><input id="guse" type="checkbox" checked></label>
+  <button class="btn" onclick="gen()">Erzeugen</button></div></div>`;
+  mixInfo()},
+async pieces(){
+  const ps=await api('/api/pieces');
+  $('#main').innerHTML=ps.map(p=>`<div class="card"><div class="row"><h2 style="margin:0">${esc(p.name)}</h2><span class="pill ${p.status==='done'?'ok':p.status==='error'?'err':'warn'}">${p.status}</span><span class="small mute">${Object.entries(p.params.styles||{}).map(([k,v])=>`${esc(k)} ${Math.round(v*100)} %`).join(' + ')||'Basismodell'} · ${p.params.seconds} s</span>
+  <button class="dng btn" style="margin-left:auto" onclick="delPiece(${p.id})">Löschen</button></div><div class="small mute">${esc(p.params.prompt||'')}</div>
+  ${p.status==='done'?`<audio controls preload="none" src="${appUrl('/media/piece/'+p.id+'.wav')}"></audio><a class="small" href="${appUrl('/media/piece/'+p.id+'.mp3')}" download>MP3</a> · <a class="small" href="${appUrl('/media/piece/'+p.id+'.wav')}" download>WAV</a>`:''}${p.error?`<div class="err small">${esc(p.error)}</div>`:''}</div>`).join('')||'<div class="card mute">Noch nichts erzeugt.</div>'},
+async jobs(){
+  // /api/jobs keeps its response small.  The dashboard supplement provides
+  // the live worker message/progress for running jobs without restarting it.
+  const [js,dash]=await Promise.all([api('/api/jobs?limit=60'),api('/api/dashboard')]), open=window._open||null;
+  const live=new Map(dash.jobs.map(j=>[j.id,j]));live.forEach((value,id)=>{const row=js.find(j=>j.id===id);if(row)Object.assign(row,value)});
+  const typ=jobTimes(js), nerr=js.filter(j=>j.status==='error').length;
+  $('#main').innerHTML=jobSummaryHtml(js)+`<div class="row" style="margin-bottom:10px">${nerr?`<button class="btn" onclick="openDiagnose()" title="Gruppiert nur die fehlgeschlagenen Jobs und nennt Ursache und Gegenmaßnahme">Fehler analysieren (${nerr})</button>`:''}<button class="btn sec" onclick="clearJobs()">Beendete löschen</button></div>`+js.map(j=>`<div class="card"><div class="row"><b>#${j.id}</b> ${esc(j.title)} <span class="pill ${j.status==='done'?'ok':j.status==='error'?'err':'warn'}">${j.status}</span>
+  <span style="margin-left:auto" class="row"><button class="btn sec" onclick="showJob(${j.id})">Log</button>${['running','queued'].includes(j.status)?`<button class="dng btn" onclick="cancelJob(${j.id})">Abbrechen</button>`:`<button class="btn sec" onclick="retryJob(${j.id})">Wiederholen</button>`}</span></div>
+  <div class="bar" style="margin-top:8px"><i style="width:${Math.round((j.progress||0)*100)}%"></i></div>${jobProgressHtml(j,typ)}${j.current?`<div class="small mute job-current" style="margin-top:4px">${esc(fmtCurrent(j.current))}</div>`:''}<div id="jl${j.id}"></div></div>`).join('')||'<div class="card mute">Keine Jobs.</div>';
+  if(open) showJob(open,true)}
+};
+async function envCheck(){$('#env').innerHTML='<span class="mute small">prüfe … (lädt torch, kann beim ersten Mal dauern)</span>';await act(async()=>{const d=await api('/api/doctor');window._env=`<table>${Object.entries(d).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="${v?'ok':'err'}">${v===true?'OK':v?esc(v):'FEHLT'}</td></tr>`).join('')}</table>`;$('#env').innerHTML=window._env})}
+async function retryFail(kinds){await act(async()=>{const r=await api('/api/failures/retry','POST',{kinds});toast(r.count?`${r.count} Job(s) gestartet – nur Fehlgeschlagenes`:'Nichts zu wiederholen');render()})}
+let selectedNasFolder='';
+function closeFolderPicker(){document.getElementById('foldermodal')?.remove()}
+async function pickFolder(path=''){
+  let data;try{data=await api('/api/folders/list','POST',{path})}catch(e){return toast(e.message||String(e),true)}
+  let modal=document.getElementById('foldermodal');if(!modal){modal=document.createElement('div');modal.id='foldermodal';modal.style.cssText='position:fixed;inset:0;background:#000b;z-index:40;overflow:auto;padding:24px';document.body.appendChild(modal)}
+  const crumbs=data.path?data.path.split(/[\\/]/):[];
+  modal.innerHTML=`<div style="max-width:760px;margin:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px"><div class="row"><h2 style="margin:0">NAS-Ordner auswählen</h2><button class="btn sec" style="margin-left:auto" onclick="closeFolderPicker()">Schließen</button></div><p class="small mute">Erlaubter Speicherort: ${esc(data.root)} · Lokale Laufwerke außerhalb dieser NAS-Freigabe sind gesperrt.</p><div class="row small" style="margin:8px 0"><button class="btn sec" ${!data.path?'disabled':''} onclick="pickFolder()">NAS-Start</button>${crumbs.map((c,i)=>`<button class="btn sec" onclick="pickFolder(decodeURIComponent('${encodeURIComponent(crumbs.slice(0,i+1).join('\\\\'))}'))">${esc(c)}</button>`).join('')}</div><div class="card" style="max-height:420px;overflow:auto"><button class="btn" onclick="chooseFolder(decodeURIComponent('${encodeURIComponent(data.path)}'),decodeURIComponent('${encodeURIComponent(data.display)}'))">Diesen Ordner auswählen</button><div style="margin-top:10px">${data.folders.map(f=>`<button class="btn sec" style="display:block;width:100%;text-align:left;margin:4px 0" onclick="pickFolder(decodeURIComponent('${encodeURIComponent(f.path)}'))">📁 ${esc(f.name)}</button>`).join('')||'<div class="mute">Keine Unterordner.</div>'}</div></div></div>`;
+}
+function chooseFolder(path,display){selectedNasFolder=path;$('#cf').textContent=display;$('#cf').className='small ok';closeFolderPicker()}
+async function addCreator(){await act(async()=>{await api('/api/creators','POST',{name:$('#cn').value,folder:selectedNasFolder});toast('Creator angelegt');selectedNasFolder='';render()})}
+async function analyze(id,force){await act(async()=>{await api(`/api/creators/${id}/analyze`,'POST',{force});toast('Analyse gestartet');go('jobs')})}
+async function trainStyle(id){if(!confirm('Stil-Training starten? Das dauert je nach Datenmenge viele Minuten bis Stunden und belegt die GPU.'))return;await act(async()=>{await api(`/api/creators/${id}/train`,'POST');toast('Training gestartet');go('jobs')})}
+async function rights(id,on){await act(async()=>{if(on){await api(`/api/creators/${id}/rights`,'POST',{confirmed:false})}else{const n=prompt('Ich habe die Rechte an diesem Material. Grundlage (z. B. „eigene Aufnahmen“, „Lizenz CC-BY“, „Vertrag vom …“):');if(!n)return;await api(`/api/creators/${id}/rights`,'POST',{confirmed:true,note:n})}render()})}
+async function delCreator(id,name){if(!confirm(`„${name}“ aus MusicAI entfernen? Die Musikdateien bleiben unverändert.`))return;const ad=confirm('Auch den trainierten Stil-Adapter löschen? (OK = ja, Abbrechen = behalten)');await act(async()=>{await api(`/api/creators/${id}?adapter=${ad?1:0}`,'DELETE');render()})}
+async function showCreator(id){const el=$('#cd'+id);if(el.innerHTML){el.innerHTML='';return}await act(async()=>{const [p,t]=await Promise.all([api(`/api/creators/${id}/profile`),api(`/api/creators/${id}/tracks`)]);
+  el.innerHTML=`<h3>Stil-Profil</h3>${p.caption?`<div><b>${esc(p.caption)}</b></div><div class="small mute">Tempo ${p.bpm} BPM (${p.bpm_min}–${p.bpm_max}) · Tonarten ${Object.entries(p.keys).slice(0,4).map(([k,v])=>`${k} ${Math.round(v*100)} %`).join(', ')} · Helligkeit ${Math.round(p.centroid_hz)} Hz · Dynamik ${p.dynamic_range_db} dB · Onsets ${p.onset_rate}/s</div>`:'<div class="mute">Noch kein Profil.</div>'}
+  <h3>Titel</h3><table><tr><th>Titel</th><th>Dauer</th><th>BPM</th><th>Tonart</th><th></th></tr>${t.slice(0,200).map(x=>`<tr><td>${esc(x.title)}</td><td>${fmtT(x.duration)}</td><td>${x.bpm??'–'}</td><td>${x.key??'–'}</td><td class="${x.error?'err':''}">${esc(x.error||'')}</td></tr>`).join('')}</table>`})}
+function setMix(slug,v){mix[slug]=+v;$('#mv_'+slug).textContent=v;clearTimeout(window._mi);window._mi=setTimeout(mixInfo,250)}
+async function mixInfo(){const st=Object.fromEntries(Object.entries(mix).filter(([,v])=>v>0));const el=$('#mixinfo');if(!el)return;if(!Object.keys(st).length){el.textContent='Mindestens ein Regler > 0.';return}
+  try{const m=await api('/api/mix','POST',{styles:st});el.innerHTML=`Gemischtes Profil: <b>${esc(m.profile?.caption||'–')}</b>${m.warnings.map(w=>`<div class="warn">${esc(w)}</div>`).join('')}`}catch(e){el.textContent=e.message}}
+async function gen(){const st=Object.fromEntries(Object.entries(mix).filter(([,v])=>v>0));await act(async()=>{await api('/api/pieces','POST',{styles:st,prompt:$('#gp').value,seconds:+$('#gs').value,strength:+$('#gst').value,seed:$('#gseed').value,name:$('#gname').value,use_profile:$('#guse').checked});toast('Erzeugung gestartet');go('jobs')})}
+async function delPiece(id){if(!confirm('Stück löschen?'))return;await act(async()=>{await api('/api/pieces/'+id,'DELETE');render()})}
+async function showJob(id,keep){const el=$('#jl'+id);if(!el)return;if(el.innerHTML&&!keep){el.innerHTML='';window._open=null;return}const j=await api('/api/jobs/'+id);window._open=id;el.innerHTML=`<pre>${esc(j.log)}</pre>`;const p=el.querySelector('pre');p.scrollTop=p.scrollHeight}
+async function cancelJob(id){await act(async()=>{await api(`/api/jobs/${id}/cancel`,'POST');render()})}
+async function retryJob(id){await act(async()=>{await api(`/api/jobs/${id}/retry`,'POST');render()})}
+async function clearJobs(){await act(async()=>{await api('/api/jobs/clear','POST',{statuses:['done','error','canceled','interrupted']});render()})}
+render();
+</script>
+</body>
+</html>
