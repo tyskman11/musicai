@@ -1,92 +1,72 @@
 # MusicAI
 
-Lokales System, das aus der Musik eines oder mehrerer **Creators, an deren Material du die Rechte hast**, einen **Stil** lernt
-und daraus **neue, eigene Musik** erzeugt – im Stil eines Creators oder als **Mischung mehrerer Stile**. Alles läuft offline auf dem eigenen PC.
+MusicAI is a local system that learns the **style** of one or more creators whose material you are authorized to use, then generates **new, original music** in one style or a weighted mix of styles. Everything runs offline on your own computer.
 
-> **Grundsatz:** Trainiert wird nur mit Material, an dem du die Rechte hast (eigene Aufnahmen, Lizenz, Vertrag). Pro Creator muss die
-> **Rechte-Bestätigung samt Grundlage** gesetzt sein, sonst ist das Training gesperrt. Gelernt wird ein *Stil* (LoRA-Adapter), keine Titel:
-> Es werden keine Aufnahmen kopiert oder ausgegeben. Erzeugte Stücke sind Neuschöpfungen eines KI-Modells – beachte trotzdem die Lizenz
-> deines Trainingsmaterials, bevor du Ergebnisse veröffentlichst.
+> **Principle:** Train only on material you own or are licensed or contracted to use. Every creator requires a recorded rights confirmation before training is enabled. The project trains a style adapter, not songs: it does not copy or output source recordings. Check the rights attached to your training material before publishing generated results.
 
 ## Start
 
 ```text
-python start.py            # WebUI auf http://127.0.0.1:8790 (Adresse steht im Terminal; es wird nie selbst ein Tab geöffnet)
-python start.py doctor     # Umgebung prüfen
-python start.py setup      # Umgebung anlegen/aktualisieren (--core: ohne KI-Pakete)
-python start.py version    # installierte Projektversion und Versionsverlauf
+python start.py            # starts the Web UI on http://127.0.0.1:8790
+python start.py doctor     # checks the environment
+python start.py setup      # creates or updates the environment
+python start.py version    # shows the installed version and change history
 ```
 
-Der Versionsverlauf liegt in [CHANGELOG.md](CHANGELOG.md). Fuer die Fehlersuche gibt es neben `musicai.log` und `errors.log` das strukturierte Ereignisprotokoll `logs\diagnostics.log`.
+The change history is in [CHANGELOG.md](CHANGELOG.md). Diagnostic events are written to `logs/diagnostics.log` alongside the regular logs.
 
-`start.py` nutzt nur die Standardbibliothek und sucht einen Interpreter: zuerst `.venv`, dann `..\SeriesAI\.venv` (dort sind torch und
-transformers schon installiert) – nie einen globalen Python. Gibt es keinen, wird `.venv` angelegt, und zwar aus einem **portablen Python 3.11**
-(python-build-standalone, SHA-256-geprüft), der – wie bei den Schwesterprojekten – gemeinsam unter `<Pool>untime\python` liegt (sonst `runtime\python` im Projekt).
-`start.bat` startet `start.py` direkt mit diesem Python. ffmpeg wird aus `..\ASMRAIuntimefmpeg` übernommen oder nach `runtime/ffmpeg` geladen.
-Alle Caches, Temp-Dateien und das Basismodell liegen in `runtime\cache` – nichts in globalen Ordnern.
+`start.py` uses only the Python standard library to bootstrap the project. It searches `.venv` first and then the sibling `../SeriesAI/.venv`; it never uses a global Python installation. If necessary, it creates a portable Python 3.11 environment and downloads FFmpeg into `runtime/`. Caches, temporary files, and the base model remain inside the project runtime directory.
 
-## Ordnerstruktur (Pool)
+## Workflow
+
+1. Create one subfolder per creator in `input/` and add audio or video files. Video files are analysed through their audio track.
+2. Run the resumable analysis job to calculate tempo, key, brightness, dynamics, onset density, bass share, and energy curves, then create a creator style profile.
+3. Record the rights basis and train the style. MusicAI fine-tunes a MusicGen decoder through a LoRA adapter and saves checkpoints after every epoch.
+4. Mix one or more styles with normalized weights, describe the desired result, and generate audio. Longer tracks are created through continuations with short crossfades.
+
+CLI examples:
 
 ```text
-tyskman11.duckdns.orgi\            Hauptordner = Pool-Server (server\, web\, client\, _template\, runtime\python)
-    projects\                        die Generatoren: jeder Ordner ist ein Pool-Projekt
-        MusicAI\  ASMRAI\  SeriesAI\  00 - DO NOT LIST\ (ComfyUI)
+python start.py analyze <creator>
+python start.py rights <creator> "own recordings"
+python start.py train <creator>
+python start.py generate --style alice=70 --style bob=30 --prompt "soft piano" --seconds 90
 ```
 
-`project.js` + `worker.js` binden MusicAI an den Pool an (verteilte Transkription von Audio-Abschnitten, Eingang `pool\input`). Alle Verweise auf Nachbarprojekte
-sind relativ (`..\SeriesAI`, `..\ASMRAI`), das Projekt läuft deshalb nach einem Verschieben des ganzen `projects`-Ordners unverändert weiter.
+## How it works
 
-## Ablauf
-
-1. **Eingang:** Lege in `input\` je Creator einen Unterordner an und kopiere Audio-/Videodateien hinein (mp3, wav, flac, m4a, mp4 …; bei Videos wird die
-   Tonspur genutzt). Neue Ordner/Dateien werden automatisch erkannt (Übersicht → „Jetzt prüfen“ erzwingt es).
-2. **Analysieren** (Job, fortsetzbar): je Titel Tempo (BPM), Tonart, Helligkeit, Dynamik, Onset-Dichte, Bassanteil, Energieverlauf → **Stil-Profil** des Creators.
-3. **Rechte bestätigen** (Grundlage eintragen) und **Stil trainieren**: LoRA-Feintuning des MusicGen-Decoders auf Ausschnitten der Titel.
-   Jeder Ausschnitt bekommt eine automatische englische Beschreibung aus seinen Merkmalen („slow, 72 bpm, A minor, dark and warm, gentle, flowing“).
-   Nach jeder Epoche wird gespeichert; ein Abbruch behält den letzten Stand. Ergebnis: `models\<creator>\adapter\lora.pt` (wenige MB).
-4. **Stil-Mix & Erzeugen:** Regler je Stil → Gewichte werden normiert → die Adapter werden gewichtet in die Basisgewichte eingerechnet
-   (`W += Stärke · Σ wᵢ · (α/r) · Bᵢ·Aᵢ`) → MusicGen erzeugt mit deiner Beschreibung (+ optional Tempo/Tonart/Klangfarbe aus dem gemischten Profil).
-   Längere Stücke entstehen aus Fortsetzungen (Kontext 8 s, 2 s Überblendung). Ergebnis als WAV und MP3 unter `data\tracks\<id>\`.
-
-Per CLI: `python start.py analyze <creator>`, `rights <creator> "eigene Aufnahmen"`, `train <creator>`,
-`generate --style alice=70 --style bob=30 --prompt "soft piano" --seconds 90`.
-
-## Wie es funktioniert
-
-| Stufe | Technik |
+| Stage | Implementation |
 |---|---|
-| Merkmale | ffmpeg → numpy-STFT: Tempo per Autokorrelation des Spektralflusses, Tonart per Krumhansl-Profile auf Chroma, Schwerpunkt/Flachheit/Bänder/Dynamik |
-| Profil | dauergewichteter Mittelwert je Creator; Mischen = gewichteter Mittelwert (Tempo, Chroma, Tonartverteilung …) |
-| Training | `facebook/musicgen-large` (3,3 Mrd.; in `config.yaml` einstellbar); EnCodec-Codes der Ausschnitte (32 kHz, 4 Codebooks, Delay-Pattern), Cross-Entropy je Codebook, nur LoRA-Matrizen (Rang 16) auf Attention und Feed-Forward des Decoders, fp16-Autocast, Gradient-Checkpointing |
-| Mischen | lineare Kombination der Adapter-Deltas (keine Laufzeitkosten, beliebig viele Stile) |
-| Erzeugen | MusicGen `generate` mit Classifier-Free-Guidance; Verlängerung per Audio-Prompt der letzten Sekunden |
+| Features | FFmpeg and NumPy STFT analysis for tempo, key, spectral features, dynamics, and energy |
+| Profile | Duration-weighted creator averages; mixed styles use weighted averages |
+| Training | Configurable MusicGen model, EnCodec excerpts, and rank-16 LoRA adapters on decoder attention and feed-forward layers |
+| Mixing | Linear combination of adapter deltas without runtime overhead |
+| Generation | MusicGen generation with classifier-free guidance and continuation prompts |
 
-## Grenzen (ehrlich)
+## Limits
 
-* **MusicGen-small** erzeugt Mono-Musik in 32 kHz und ist deutlich schwächer als aktuelle Cloud-Modelle; **kein Gesang mit Text**, Klang eher „Skizze“.
-  Mit 6 GB VRAM sind `medium`/`large` nicht realistisch (Modell in `config.yaml` änderbar, wenn mehr VRAM da ist).
-* Stil-Training mit wenigen Titeln lernt eher **Klangfarbe, Tempo-/Tonartverteilung und Instrumentierung** als Melodien oder Songstruktur.
-  Mehr als ~1–2 Stunden Material pro Creator bringt gerade bei kleinem Modell zunehmend weniger.
-* Tempo/Tonart/Klassen sind Signal-Schätzungen (kein trainierter Klassifikator); bei Mixen, Ambient oder Metrumwechseln können sie danebenliegen.
-* Das **Mischen** zweier LoRAs ist eine lineare Mittelung: das funktioniert gut für ähnliche Stile, bei sehr gegensätzlichen kann das Ergebnis unscharf werden – Stärke und Gewichte ausprobieren.
-* Der erste Lauf lädt das Basismodell (ca. 2,3 GB) nach `runtime\cache\huggingface` (`music.allow_download: false` verhindert das).
-* Training und Erzeugung teilen sich die GPU mit ComfyUI/Whisper/XTTS der Nachbarprojekte – nicht gleichzeitig laufen lassen.
+- `musicgen-small` produces mono 32 kHz music and is best treated as a sketching model; it does not generate lyric vocals.
+- A 6 GB GPU is generally not sufficient for practical `medium` or `large` model training.
+- Small training sets mainly teach timbre, instrumentation, and tempo/key tendencies rather than complete song structure.
+- Feature extraction is an estimate and may be less reliable for ambient music, dense mixes, or frequent meter changes.
+- Style mixing is linear, so very different styles can produce softer or less distinct results.
+- Training and generation share local GPU capacity with related projects such as ComfyUI, Whisper, and XTTS.
 
-## Daten & Sicherheit
+## Data and security
 
-* Quelldateien werden **nie** verändert; „Entfernen“ löscht nur Datenbank-Einträge (der Adapter nur auf ausdrückliche Rückfrage).
-* Der Server bindet an `127.0.0.1`, prüft `Host` (DNS-Rebinding) und `Origin` (CSRF).
-* Alle Pfade sind projektrelativ (`config.yaml`); das Projekt lässt sich verschieben, gespeicherte absolute Pfade werden beim Start umgeschrieben.
+- Source files are never modified. Removing a creator removes database records only; adapters require an explicit separate action.
+- The server binds to `127.0.0.1` and validates `Host` and `Origin` headers.
+- Paths in `config.yaml` are project-relative, so the project can be moved as a folder.
 
-## Struktur
+## Layout
 
 ```text
-config.yaml            Pfade, Modell, Training, Erzeugung, Ports
-start.py               Starter
-input\<creator>\       deine Musik (nie verändert)
-models\<creator>\adapter\   trainierter Stil (lora.pt + adapter.json)
-data\                  musicai.db, tracks\<id>\ (erzeugte Stücke)
-src\musicai\           analysis, profile, pipeline, lora, musgen/train/generate, app, web, cli, watcher, jobs
-src\musicai\static\    WebUI (Single-Page, kein Build-Schritt)
-tests\                 pytest (python -m pytest)
+config.yaml                    paths, model, training, generation, and ports
+start.py                       launcher
+input/<creator>/               source music (never modified)
+models/<creator>/adapter/      trained style adapter
+data/                          local database and generated tracks
+src/musicai/                   analysis, profile, pipeline, LoRA, generation, application, Web UI, CLI, and jobs
+src/musicai/static/            single-page Web UI without a build step
+tests/                         pytest suite
 ```
